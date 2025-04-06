@@ -51,7 +51,7 @@ class TodoTile extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: onDelete, // Call the onDelete callback
+              onPressed: onDelete,
               icon: Icon(Icons.delete, color: flavor.red),
             ),
           ],
