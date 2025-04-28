@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:todo/widgets/todo_tile.dart';
 import 'package:todo/widgets/add_task_bar.dart';
 import 'package:catppuccin_flutter/catppuccin_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,19 +14,44 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   Flavor flavor = catppuccin.macchiato;
-
   final _controller = TextEditingController();
-  List toDoList = [
-    ['Flutter Lernen', false],
-    ['Kaffee trinken', false],
-    ['Buch lesen', false],
-    ['Film schauen', false],
-  ];
+  final _storage = const FlutterSecureStorage();
+  List toDoList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadToDoList();
+  }
+
+  Future<void> _loadToDoList() async {
+    String? data = await _storage.read(key: 'todo_list');
+    if (data != null) {
+      setState(() {
+        toDoList = List<List<dynamic>>.from(jsonDecode(data));
+      });
+    } else {
+      setState(() {
+        toDoList = [
+          ['Flutter Lernen', false],
+          ['Kaffee trinken', false],
+          ['Buch lesen', false],
+          ['Film schauen', false],
+        ];
+      });
+      _saveToDoList();
+    }
+  }
+
+  Future<void> _saveToDoList() async {
+    await _storage.write(key: 'todo_list', value: jsonEncode(toDoList));
+  }
 
   void checkBoxChanged(int index) {
     setState(() {
       toDoList[index][1] = !toDoList[index][1];
     });
+    _saveToDoList();
   }
 
   void addTask() {
@@ -32,12 +59,14 @@ class _HomePageState extends State<HomePage> {
       toDoList.add([_controller.text, false]);
       _controller.clear();
     });
+    _saveToDoList();
   }
 
   void deleteTask(int index) {
     setState(() {
       toDoList.removeAt(index);
     });
+    _saveToDoList();
   }
 
   @override
