@@ -55,6 +55,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   void addTask() {
+    if (_controller.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Aufgabe darf nicht leer sein!'),
+          backgroundColor: flavor.red,
+        ),
+      );
+      return;
+    }
     setState(() {
       toDoList.add([_controller.text, false]);
       _controller.clear();
