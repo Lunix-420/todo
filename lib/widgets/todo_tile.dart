@@ -1,7 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:catppuccin_flutter/catppuccin_flutter.dart';
 
+/// A widget that displays a single todo item with a checkbox and delete button.
+///
+/// Shows the task name, its completion status, and allows toggling or deleting the task.
+///
+/// @attribute taskName The name of the todo task.
+/// @attribute taskDone Whether the task is marked as completed.
+/// @attribute onChanged Callback when the checkbox is toggled.
+/// @attribute onDelete Callback when the delete button is pressed.
 class TodoTile extends StatelessWidget {
+  /// Creates a [TodoTile] widget.
+  ///
+  /// @param key Optional widget key.
+  /// @param taskName The name of the todo task.
+  /// @param taskDone Whether the task is marked as completed.
+  /// @param onChanged Callback for checkbox toggle.
+  /// @param onDelete Callback for delete button.
   const TodoTile({
     super.key,
     required this.taskName,
@@ -15,6 +30,10 @@ class TodoTile extends StatelessWidget {
   final Function(bool?)? onChanged;
   final VoidCallback? onDelete;
 
+  /// Builds the todo tile UI.
+  ///
+  /// @param context The build context.
+  /// @return Widget
   @override
   Widget build(BuildContext context) {
     Flavor flavor = catppuccin.macchiato;

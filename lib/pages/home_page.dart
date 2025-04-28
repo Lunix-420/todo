@@ -5,25 +5,49 @@ import 'package:catppuccin_flutter/catppuccin_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 
+/// The main page of the Todo app.
+///
+/// Displays the list of tasks and allows users to add, check off, and delete tasks.
+/// Uses secure storage to persist the todo list.
 class HomePage extends StatefulWidget {
+  /// Creates a [HomePage] widget.
+  ///
+  /// @param key Optional widget key.
   const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
+/// State for [HomePage].
+///
+/// Handles loading, saving, and updating the todo list, as well as user interactions.
 class _HomePageState extends State<HomePage> {
+  /// @attribute flavor The color flavor used for theming the app.
   Flavor flavor = catppuccin.macchiato;
+
+  /// @attribute _controller Controller for the text input field where users enter new tasks.
   final _controller = TextEditingController();
+
+  /// @attribute _storage Secure storage instance for persisting the todo list.
   final _storage = const FlutterSecureStorage();
+
+  /// @attribute toDoList The list of todo items.
+  ///
+  /// Each item is a list containing the task name (String) and its completion status (bool).
   List toDoList = [];
 
+  /// Initializes the state and loads the todo list from secure storage.
   @override
   void initState() {
     super.initState();
     _loadToDoList();
   }
 
+  /// Loads the todo list from secure storage.
+  ///
+  /// If no data is found, initializes the list with default tasks and saves them.
+  /// @return Future<void>
   Future<void> _loadToDoList() async {
     String? data = await _storage.read(key: 'todo_list');
     if (data != null) {
@@ -43,10 +67,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// Saves the current todo list to secure storage.
+  /// @return Future<void>
   Future<void> _saveToDoList() async {
     await _storage.write(key: 'todo_list', value: jsonEncode(toDoList));
   }
 
+  /// Toggles the completion status of the task at the given [index].
+  ///
+  /// Also saves the updated list to storage.
+  /// @param index The index of the task to toggle.
   void checkBoxChanged(int index) {
     setState(() {
       toDoList[index][1] = !toDoList[index][1];
@@ -54,6 +84,9 @@ class _HomePageState extends State<HomePage> {
     _saveToDoList();
   }
 
+  /// Adds a new task to the todo list using the text from [_controller].
+  ///
+  /// If the input is empty, shows a snackbar with an error message.
   void addTask() {
     if (_controller.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -71,6 +104,10 @@ class _HomePageState extends State<HomePage> {
     _saveToDoList();
   }
 
+  /// Deletes the task at the given [index] from the todo list.
+  ///
+  /// Also saves the updated list to storage.
+  /// @param index The index of the task to delete.
   void deleteTask(int index) {
     setState(() {
       toDoList.removeAt(index);
@@ -78,6 +115,9 @@ class _HomePageState extends State<HomePage> {
     _saveToDoList();
   }
 
+  /// Builds the UI for the home page, including the app bar, todo list, and add task bar.
+  /// @param context The build context.
+  /// @return Widget
   @override
   Widget build(BuildContext context) {
     return Scaffold(

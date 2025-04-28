@@ -1,7 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:catppuccin_flutter/catppuccin_flutter.dart';
 
+/// A widget that provides a text field and a button to add new tasks.
+///
+/// Displays a styled input bar at the bottom of the screen for entering new todo items.
+/// The button triggers the provided callback to add the task.
+///
+/// @attribute controller The [TextEditingController] for the input field.
+/// @attribute onAddTask Callback function to be called when the add button is pressed.
+/// @attribute flavor The [Flavor] used for theming colors.
 class AddTaskBar extends StatelessWidget {
+  /// Creates an [AddTaskBar] widget.
+  ///
+  /// @param key Optional widget key.
+  /// @param controller Controller for the text input field.
+  /// @param onAddTask Callback for when the add button is pressed.
+  /// @param flavor The color flavor for theming.
   const AddTaskBar({
     super.key,
     required this.controller,
@@ -13,6 +27,10 @@ class AddTaskBar extends StatelessWidget {
   final VoidCallback onAddTask;
   final Flavor flavor;
 
+  /// Builds the add task bar UI.
+  ///
+  /// @param context The build context.
+  /// @return Widget
   @override
   Widget build(BuildContext context) {
     return Row(
