@@ -3,7 +3,9 @@ import 'package:todo/widgets/todo_tile.dart';
 import 'package:todo/widgets/add_task_bar.dart';
 import 'package:catppuccin_flutter/catppuccin_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
+import 'dart:io';
 
 /// The main page of the Todo app.
 ///
@@ -115,6 +117,49 @@ class _HomePageState extends State<HomePage> {
     _saveToDoList();
   }
 
+  /// Loads todo items from a JSON file and adds them to the current list and storage.
+  Future<void> _loadFromJsonFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result != null && result.files.single.path != null) {
+        File file = File(result.files.single.path!);
+        String content = await file.readAsString();
+        List<dynamic> jsonList = jsonDecode(content);
+
+        // Each item should have: todoName, todoId, status, deadline
+        List<List<dynamic>> newTodos = [];
+        for (var item in jsonList) {
+          if (item is Map<String, dynamic>) {
+            String name = item['todoName'] ?? '';
+            bool done = (item['status'] == 'done');
+            // Optionally, you can store more info if you extend your data model
+            newTodos.add([name, done]);
+          }
+        }
+        setState(() {
+          toDoList.addAll(newTodos);
+        });
+        await _saveToDoList();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('JSON-Todos geladen!'),
+            backgroundColor: flavor.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fehler beim Laden der JSON-Datei'),
+          backgroundColor: flavor.red,
+        ),
+      );
+    }
+  }
+
   /// Builds the UI for the home page, including the app bar, todo list, and add task bar.
   /// @param context The build context.
   /// @return Widget
@@ -127,6 +172,13 @@ class _HomePageState extends State<HomePage> {
         centerTitle: true,
         backgroundColor: flavor.surface0,
         foregroundColor: flavor.text,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.upload_file, color: flavor.text),
+            tooltip: 'Load JSON',
+            onPressed: _loadFromJsonFile,
+          ),
+        ],
       ),
       body: ListView.builder(
         itemCount: toDoList.length,

@@ -1,0 +1,14 @@
+[
+  {
+    "todoName": "Flutter Lernen",
+    "todoId": 1,
+    "status": "pending",
+    "deadline": "2025-05-20"
+  },
+  {
+    "todoName": "Kaffee trinken",
+    "todoId": 2,
+    "status": "done",
+    "deadline": "2025-05-13"
+  }
+]
