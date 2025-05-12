@@ -56,6 +56,7 @@ class AddTaskBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
+              onSubmitted: (_) => onAddTask(),
             ),
           ),
         ),
