@@ -6,6 +6,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+// Only import dart:html if on web
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 /// The main page of the Todo app.
 ///
@@ -160,6 +165,67 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// Exports the current todo list as a JSON file.
+  Future<void> _exportToJsonFile() async {
+    try {
+      // Prepare the JSON list with the required fields
+      List<Map<String, dynamic>> exportList = [];
+      int id = 1;
+      for (var item in toDoList) {
+        exportList.add({
+          "todoName": item[0],
+          "todoId": id++,
+          "status": item[1] == true ? "done" : "pending",
+          "deadline": "", // No deadline in current model, left empty
+        });
+      }
+      String jsonString = jsonEncode(exportList);
+
+      if (kIsWeb) {
+        // Web: trigger browser download
+        final bytes = utf8.encode(jsonString);
+        final blob = html.Blob([bytes], 'application/json');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', 'exported_todos.json')
+          ..click();
+        html.Url.revokeObjectUrl(url);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Todos als JSON exportiert (Download gestartet)'),
+            backgroundColor: flavor.green,
+          ),
+        );
+      } else {
+        // Mobile/Desktop: save to file system
+        Directory? directory;
+        if (Platform.isAndroid || Platform.isIOS) {
+          directory = await getApplicationDocumentsDirectory();
+        } else {
+          directory = await getDownloadsDirectory();
+        }
+        String filePath = "${directory!.path}/exported_todos.json";
+        File file = File(filePath);
+        await file.writeAsString(jsonString);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Todos exportiert: $filePath'),
+            backgroundColor: flavor.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fehler beim Exportieren der JSON-Datei'),
+          backgroundColor: flavor.red,
+        ),
+      );
+    }
+  }
+
   /// Builds the UI for the home page, including the app bar, todo list, and add task bar.
   /// @param context The build context.
   /// @return Widget
@@ -177,6 +243,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.upload_file, color: flavor.text),
             tooltip: 'Load JSON',
             onPressed: _loadFromJsonFile,
+          ),
+          IconButton(
+            icon: Icon(Icons.download, color: flavor.text),
+            tooltip: 'Export as JSON',
+            onPressed: _exportToJsonFile,
           ),
         ],
       ),

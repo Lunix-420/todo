@@ -33,6 +33,7 @@ dependencies:
   catppuccin_flutter: any
   flutter_secure_storage: ^9.0.0
   file_picker: ^6.1.1
+  path_provider: ^2.1.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
