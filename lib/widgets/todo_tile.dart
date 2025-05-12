@@ -69,9 +69,65 @@ class TodoTile extends StatelessWidget {
                 ),
               ),
             ),
-            IconButton(
-              onPressed: onDelete,
-              icon: Icon(Icons.delete, color: flavor.red),
+            StatefulBuilder(
+              builder: (context, setState) {
+                final hover = ValueNotifier(false);
+                return ValueListenableBuilder<bool>(
+                  valueListenable: hover,
+                  builder:
+                      (context, isHovered, child) => MouseRegion(
+                        onEnter: (_) => hover.value = true,
+                        onExit: (_) => hover.value = false,
+                        child: AnimatedScale(
+                          scale: isHovered ? 1.08 : 1.0,
+                          duration: const Duration(milliseconds: 120),
+                          child: GestureDetector(
+                            onTap: onDelete,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [flavor.red, flavor.maroon],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 10,
+                                    spreadRadius: 1,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.delete,
+                                    color: Colors.black,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Löschen',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                );
+              },
             ),
           ],
         ),

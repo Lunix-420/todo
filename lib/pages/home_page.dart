@@ -3,7 +3,14 @@ import 'package:todo/widgets/todo_tile.dart';
 import 'package:todo/widgets/add_task_bar.dart';
 import 'package:catppuccin_flutter/catppuccin_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+// Only import dart:html if on web
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 /// The main page of the Todo app.
 ///
@@ -34,7 +41,7 @@ class _HomePageState extends State<HomePage> {
 
   /// @attribute toDoList The list of todo items.
   ///
-  /// Each item is a list containing the task name (String) and its completion status (bool).
+  /// Each item is a list containing the task name (String), its completion status (bool), and a unique ID (int).
   List toDoList = [];
 
   /// Initializes the state and loads the todo list from secure storage.
@@ -52,15 +59,26 @@ class _HomePageState extends State<HomePage> {
     String? data = await _storage.read(key: 'todo_list');
     if (data != null) {
       setState(() {
-        toDoList = List<List<dynamic>>.from(jsonDecode(data));
+        // Support both old and new formats for backward compatibility
+        List rawList = jsonDecode(data);
+        toDoList =
+            rawList.map((item) {
+              if (item.length == 3) return item;
+              // If old format, assign a unique id
+              return [
+                item[0],
+                item[1],
+                DateTime.now().millisecondsSinceEpoch + rawList.indexOf(item),
+              ];
+            }).toList();
       });
     } else {
       setState(() {
         toDoList = [
-          ['Flutter Lernen', false],
-          ['Kaffee trinken', false],
-          ['Buch lesen', false],
-          ['Film schauen', false],
+          ['Flutter Lernen', false, 1],
+          ['Kaffee trinken', false, 2],
+          ['Buch lesen', false, 3],
+          ['Film schauen', false, 4],
         ];
       });
       _saveToDoList();
@@ -98,7 +116,9 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     setState(() {
-      toDoList.add([_controller.text, false]);
+      // Assign a unique id (timestamp-based)
+      int newId = DateTime.now().millisecondsSinceEpoch;
+      toDoList.add([_controller.text, false, newId]);
       _controller.clear();
     });
     _saveToDoList();
@@ -115,6 +135,126 @@ class _HomePageState extends State<HomePage> {
     _saveToDoList();
   }
 
+  /// Loads todo items from a JSON file and adds them to the current list and storage.
+  Future<void> _loadFromJsonFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result != null) {
+        String content;
+        if (kIsWeb) {
+          // On web, read from bytes
+          final bytes = result.files.single.bytes;
+          if (bytes == null) throw Exception("Keine Datei-Inhalte gefunden.");
+          content = utf8.decode(bytes);
+        } else {
+          // On mobile/desktop, read from file path
+          if (result.files.single.path == null)
+            throw Exception("Dateipfad fehlt.");
+          File file = File(result.files.single.path!);
+          content = await file.readAsString();
+        }
+        List<dynamic> jsonList = jsonDecode(content);
+
+        // Build set of existing IDs
+        Set existingIds =
+            toDoList.map((item) => item.length > 2 ? item[2] : null).toSet();
+
+        List<List<dynamic>> newTodos = [];
+        for (var item in jsonList) {
+          if (item is Map<String, dynamic>) {
+            String name = item['todoName'] ?? '';
+            bool done = (item['status'] == 'done');
+            var id = item['todoId'];
+            if (id == null) continue;
+            if (existingIds.contains(id)) continue; // skip duplicates
+            newTodos.add([name, done, id]);
+          }
+        }
+        setState(() {
+          toDoList.addAll(newTodos);
+        });
+        await _saveToDoList();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('JSON-Todos geladen!'),
+            backgroundColor: flavor.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fehler beim Laden der JSON-Datei'),
+          backgroundColor: flavor.red,
+        ),
+      );
+    }
+  }
+
+  /// Exports the current todo list as a JSON file.
+  Future<void> _exportToJsonFile() async {
+    try {
+      // Prepare the JSON list with the required fields
+      List<Map<String, dynamic>> exportList = [];
+      for (var item in toDoList) {
+        exportList.add({
+          "todoName": item[0],
+          "todoId": item.length > 2 ? item[2] : null,
+          "status": item[1] == true ? "done" : "pending",
+          "deadline": "", // No deadline in current model, left empty
+        });
+      }
+      String jsonString = jsonEncode(exportList);
+
+      if (kIsWeb) {
+        // Web: trigger browser download
+        final bytes = utf8.encode(jsonString);
+        final blob = html.Blob([bytes], 'application/json');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor =
+            html.AnchorElement(href: url)
+              ..setAttribute('download', 'exported_todos.json')
+              ..click();
+        html.Url.revokeObjectUrl(url);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Todos als JSON exportiert (Download gestartet)'),
+            backgroundColor: flavor.green,
+          ),
+        );
+      } else {
+        // Mobile/Desktop: save to file system
+        Directory? directory;
+        if (Platform.isAndroid || Platform.isIOS) {
+          directory = await getApplicationDocumentsDirectory();
+        } else {
+          directory = await getDownloadsDirectory();
+        }
+        String filePath = "${directory!.path}/exported_todos.json";
+        File file = File(filePath);
+        await file.writeAsString(jsonString);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Todos exportiert: $filePath'),
+            backgroundColor: flavor.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fehler beim Exportieren der JSON-Datei'),
+          backgroundColor: flavor.red,
+        ),
+      );
+    }
+  }
+
   /// Builds the UI for the home page, including the app bar, todo list, and add task bar.
   /// @param context The build context.
   /// @return Widget
@@ -123,10 +263,148 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: flavor.base,
       appBar: AppBar(
-        title: const Text('Todo Liste'),
+        title: const Text(
+          'Todo Liste',
+          style: TextStyle(
+            fontSize: 32, // Bigger font size
+            fontWeight: FontWeight.bold, // Bolder
+          ),
+        ),
         centerTitle: true,
         backgroundColor: flavor.surface0,
         foregroundColor: flavor.text,
+        elevation: 2,
+        toolbarHeight: 80, // Make AppBar taller
+        actions: [
+          // Import Button with hover effect
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                final hover = ValueNotifier(false);
+                return ValueListenableBuilder<bool>(
+                  valueListenable: hover,
+                  builder:
+                      (context, isHovered, child) => MouseRegion(
+                        onEnter: (_) => hover.value = true,
+                        onExit: (_) => hover.value = false,
+                        child: AnimatedScale(
+                          scale: isHovered ? 1.08 : 1.0,
+                          duration: const Duration(milliseconds: 120),
+                          child: GestureDetector(
+                            onTap: _loadFromJsonFile,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 120),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [flavor.peach, flavor.red],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: isHovered ? 14 : 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.file_upload,
+                                    color: Colors.black,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Import',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                );
+              },
+            ),
+          ),
+          // Export Button with hover effect
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                final hover = ValueNotifier(false);
+                return ValueListenableBuilder<bool>(
+                  valueListenable: hover,
+                  builder:
+                      (context, isHovered, child) => MouseRegion(
+                        onEnter: (_) => hover.value = true,
+                        onExit: (_) => hover.value = false,
+                        child: AnimatedScale(
+                          scale: isHovered ? 1.08 : 1.0,
+                          duration: const Duration(milliseconds: 120),
+                          child: GestureDetector(
+                            onTap: _exportToJsonFile,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 120),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [flavor.peach, flavor.red],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: isHovered ? 14 : 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.file_download,
+                                    color: Colors.black,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Export',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       body: ListView.builder(
         itemCount: toDoList.length,
