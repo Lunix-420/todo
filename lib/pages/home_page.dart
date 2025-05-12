@@ -263,20 +263,108 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: flavor.base,
       appBar: AppBar(
-        title: const Text('Todo Liste'),
+        title: const Text(
+          'Todo Liste',
+          style: TextStyle(
+            fontSize: 32, // Bigger font size
+            fontWeight: FontWeight.bold, // Bolder
+          ),
+        ),
         centerTitle: true,
         backgroundColor: flavor.surface0,
         foregroundColor: flavor.text,
+        elevation: 2,
+        toolbarHeight: 80, // Make AppBar taller
         actions: [
-          IconButton(
-            icon: Icon(Icons.upload_file, color: flavor.text),
-            tooltip: 'Load JSON',
-            onPressed: _loadFromJsonFile,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: GestureDetector(
+              onTap: _loadFromJsonFile,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [flavor.peach, flavor.red],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: flavor.peach.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.file_upload,
+                      color: Colors.black,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Import',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          IconButton(
-            icon: Icon(Icons.download, color: flavor.text),
-            tooltip: 'Export as JSON',
-            onPressed: _exportToJsonFile,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: GestureDetector(
+              onTap: _exportToJsonFile,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [flavor.peach, flavor.red],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: flavor.peach.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.file_download,
+                      color: Colors.black,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Export',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
