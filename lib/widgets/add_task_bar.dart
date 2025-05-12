@@ -60,28 +60,46 @@ class AddTaskBar extends StatelessWidget {
             ),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [flavor.peach, flavor.red],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: FloatingActionButton(
-            onPressed: onAddTask,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: const Icon(Icons.add),
-          ),
+        // --- Animated add button with hover effect ---
+        StatefulBuilder(
+          builder: (context, setState) {
+            final hover = ValueNotifier(false);
+            return ValueListenableBuilder<bool>(
+              valueListenable: hover,
+              builder:
+                  (context, isHovered, child) => MouseRegion(
+                    onEnter: (_) => hover.value = true,
+                    onExit: (_) => hover.value = false,
+                    child: AnimatedScale(
+                      scale: isHovered ? 1.08 : 1.0,
+                      duration: const Duration(milliseconds: 120),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [flavor.peach, flavor.red],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: FloatingActionButton(
+                          onPressed: onAddTask,
+                          backgroundColor: Colors.transparent,
+                          elevation: 0,
+                          child: const Icon(Icons.add),
+                        ),
+                      ),
+                    ),
+                  ),
+            );
+          },
         ),
       ],
     );
