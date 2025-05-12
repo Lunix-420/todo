@@ -68,6 +68,13 @@ class AddTaskBar extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
           child: FloatingActionButton(
             onPressed: onAddTask,
