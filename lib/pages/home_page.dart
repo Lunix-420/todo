@@ -41,7 +41,7 @@ class _HomePageState extends State<HomePage> {
 
   /// @attribute toDoList The list of todo items.
   ///
-  /// Each item is a list containing the task name (String) and its completion status (bool).
+  /// Each item is a list containing the task name (String), its completion status (bool), and a unique ID (int).
   List toDoList = [];
 
   /// Initializes the state and loads the todo list from secure storage.
@@ -59,15 +59,26 @@ class _HomePageState extends State<HomePage> {
     String? data = await _storage.read(key: 'todo_list');
     if (data != null) {
       setState(() {
-        toDoList = List<List<dynamic>>.from(jsonDecode(data));
+        // Support both old and new formats for backward compatibility
+        List rawList = jsonDecode(data);
+        toDoList =
+            rawList.map((item) {
+              if (item.length == 3) return item;
+              // If old format, assign a unique id
+              return [
+                item[0],
+                item[1],
+                DateTime.now().millisecondsSinceEpoch + rawList.indexOf(item),
+              ];
+            }).toList();
       });
     } else {
       setState(() {
         toDoList = [
-          ['Flutter Lernen', false],
-          ['Kaffee trinken', false],
-          ['Buch lesen', false],
-          ['Film schauen', false],
+          ['Flutter Lernen', false, 1],
+          ['Kaffee trinken', false, 2],
+          ['Buch lesen', false, 3],
+          ['Film schauen', false, 4],
         ];
       });
       _saveToDoList();
@@ -105,7 +116,9 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     setState(() {
-      toDoList.add([_controller.text, false]);
+      // Assign a unique id (timestamp-based)
+      int newId = DateTime.now().millisecondsSinceEpoch;
+      toDoList.add([_controller.text, false, newId]);
       _controller.clear();
     });
     _saveToDoList();
@@ -145,13 +158,19 @@ class _HomePageState extends State<HomePage> {
         }
         List<dynamic> jsonList = jsonDecode(content);
 
-        // Each item should have: todoName, todoId, status, deadline
+        // Build set of existing IDs
+        Set existingIds =
+            toDoList.map((item) => item.length > 2 ? item[2] : null).toSet();
+
         List<List<dynamic>> newTodos = [];
         for (var item in jsonList) {
           if (item is Map<String, dynamic>) {
             String name = item['todoName'] ?? '';
             bool done = (item['status'] == 'done');
-            newTodos.add([name, done]);
+            var id = item['todoId'];
+            if (id == null) continue;
+            if (existingIds.contains(id)) continue; // skip duplicates
+            newTodos.add([name, done, id]);
           }
         }
         setState(() {
@@ -180,11 +199,10 @@ class _HomePageState extends State<HomePage> {
     try {
       // Prepare the JSON list with the required fields
       List<Map<String, dynamic>> exportList = [];
-      int id = 1;
       for (var item in toDoList) {
         exportList.add({
           "todoName": item[0],
-          "todoId": id++,
+          "todoId": item.length > 2 ? item[2] : null,
           "status": item[1] == true ? "done" : "pending",
           "deadline": "", // No deadline in current model, left empty
         });
