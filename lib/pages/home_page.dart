@@ -129,9 +129,20 @@ class _HomePageState extends State<HomePage> {
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
-      if (result != null && result.files.single.path != null) {
-        File file = File(result.files.single.path!);
-        String content = await file.readAsString();
+      if (result != null) {
+        String content;
+        if (kIsWeb) {
+          // On web, read from bytes
+          final bytes = result.files.single.bytes;
+          if (bytes == null) throw Exception("Keine Datei-Inhalte gefunden.");
+          content = utf8.decode(bytes);
+        } else {
+          // On mobile/desktop, read from file path
+          if (result.files.single.path == null)
+            throw Exception("Dateipfad fehlt.");
+          File file = File(result.files.single.path!);
+          content = await file.readAsString();
+        }
         List<dynamic> jsonList = jsonDecode(content);
 
         // Each item should have: todoName, todoId, status, deadline
@@ -140,7 +151,6 @@ class _HomePageState extends State<HomePage> {
           if (item is Map<String, dynamic>) {
             String name = item['todoName'] ?? '';
             bool done = (item['status'] == 'done');
-            // Optionally, you can store more info if you extend your data model
             newTodos.add([name, done]);
           }
         }
@@ -186,9 +196,10 @@ class _HomePageState extends State<HomePage> {
         final bytes = utf8.encode(jsonString);
         final blob = html.Blob([bytes], 'application/json');
         final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', 'exported_todos.json')
-          ..click();
+        final anchor =
+            html.AnchorElement(href: url)
+              ..setAttribute('download', 'exported_todos.json')
+              ..click();
         html.Url.revokeObjectUrl(url);
 
         ScaffoldMessenger.of(context).showSnackBar(
