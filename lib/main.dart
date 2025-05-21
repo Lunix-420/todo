@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:todo/pages/home_page.dart';
-
 import 'pages/auth_screen.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'db/todo_database.dart';
 
 /// Entry point for the Todo app.
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  Hive.registerAdapter(TodoItemAdapter());
+  await openTodoBox();
   runApp(const MyApp());
 }
 

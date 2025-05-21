@@ -8,9 +8,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-// Only import dart:html if on web
-// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
+import 'package:hive_flutter/hive_flutter.dart';
+import '../db/todo_database.dart';
 
 /// The main page of the Todo app.
 ///
@@ -39,56 +39,27 @@ class _HomePageState extends State<HomePage> {
   /// @attribute _storage Secure storage instance for persisting the todo list.
   final _storage = const FlutterSecureStorage();
 
-  /// @attribute toDoList The list of todo items.
-  ///
-  /// Each item is a list containing the task name (String), its completion status (bool), and a unique ID (int).
-  List toDoList = [];
+  // Remove in-memory list, use Hive box instead
+
+  late Box<TodoItem> todoBox;
 
   /// Initializes the state and loads the todo list from secure storage.
   @override
   void initState() {
     super.initState();
-    _loadToDoList();
-  }
-
-  /// Loads the todo list from secure storage.
-  ///
-  /// If no data is found, initializes the list with default tasks and saves them.
-  /// @return Future<void>
-  Future<void> _loadToDoList() async {
-    String? data = await _storage.read(key: 'todo_list');
-    if (data != null) {
-      setState(() {
-        // Support both old and new formats for backward compatibility
-        List rawList = jsonDecode(data);
-        toDoList =
-            rawList.map((item) {
-              if (item.length == 3) return item;
-              // If old format, assign a unique id
-              return [
-                item[0],
-                item[1],
-                DateTime.now().millisecondsSinceEpoch + rawList.indexOf(item),
-              ];
-            }).toList();
-      });
-    } else {
-      setState(() {
-        toDoList = [
-          ['Flutter Lernen', false, 1],
-          ['Kaffee trinken', false, 2],
-          ['Buch lesen', false, 3],
-          ['Film schauen', false, 4],
-        ];
-      });
-      _saveToDoList();
+    todoBox = Hive.box<TodoItem>(todoBoxName);
+    // If box is empty, add default todos
+    if (todoBox.isEmpty) {
+      final defaults = [
+        TodoItem(name: 'Flutter Lernen', done: false, id: 1),
+        TodoItem(name: 'Kaffee trinken', done: false, id: 2),
+        TodoItem(name: 'Buch lesen', done: false, id: 3),
+        TodoItem(name: 'Film schauen', done: false, id: 4),
+      ];
+      for (var todo in defaults) {
+        todoBox.add(todo);
+      }
     }
-  }
-
-  /// Saves the current todo list to secure storage.
-  /// @return Future<void>
-  Future<void> _saveToDoList() async {
-    await _storage.write(key: 'todo_list', value: jsonEncode(toDoList));
   }
 
   /// Toggles the completion status of the task at the given [index].
@@ -96,10 +67,12 @@ class _HomePageState extends State<HomePage> {
   /// Also saves the updated list to storage.
   /// @param index The index of the task to toggle.
   void checkBoxChanged(int index) {
-    setState(() {
-      toDoList[index][1] = !toDoList[index][1];
-    });
-    _saveToDoList();
+    final todo = todoBox.getAt(index);
+    if (todo != null) {
+      todo.done = !todo.done;
+      todo.save();
+      setState(() {});
+    }
   }
 
   /// Adds a new task to the todo list using the text from [_controller].
@@ -115,13 +88,11 @@ class _HomePageState extends State<HomePage> {
       );
       return;
     }
-    setState(() {
-      // Assign a unique id (timestamp-based)
-      int newId = DateTime.now().millisecondsSinceEpoch;
-      toDoList.add([_controller.text, false, newId]);
-      _controller.clear();
-    });
-    _saveToDoList();
+    int newId = DateTime.now().millisecondsSinceEpoch;
+    final todo = TodoItem(name: _controller.text, done: false, id: newId);
+    todoBox.add(todo);
+    _controller.clear();
+    setState(() {});
   }
 
   /// Deletes the task at the given [index] from the todo list.
@@ -129,10 +100,8 @@ class _HomePageState extends State<HomePage> {
   /// Also saves the updated list to storage.
   /// @param index The index of the task to delete.
   void deleteTask(int index) {
-    setState(() {
-      toDoList.removeAt(index);
-    });
-    _saveToDoList();
+    todoBox.deleteAt(index);
+    setState(() {});
   }
 
   /// Loads todo items from a JSON file and adds them to the current list and storage.
@@ -159,10 +128,9 @@ class _HomePageState extends State<HomePage> {
         List<dynamic> jsonList = jsonDecode(content);
 
         // Build set of existing IDs
-        Set existingIds =
-            toDoList.map((item) => item.length > 2 ? item[2] : null).toSet();
+        Set existingIds = todoBox.values.map((item) => item.id).toSet();
 
-        List<List<dynamic>> newTodos = [];
+        List<TodoItem> newTodos = [];
         for (var item in jsonList) {
           if (item is Map<String, dynamic>) {
             String name = item['todoName'] ?? '';
@@ -170,13 +138,13 @@ class _HomePageState extends State<HomePage> {
             var id = item['todoId'];
             if (id == null) continue;
             if (existingIds.contains(id)) continue; // skip duplicates
-            newTodos.add([name, done, id]);
+            newTodos.add(TodoItem(name: name, done: done, id: id));
           }
         }
-        setState(() {
-          toDoList.addAll(newTodos);
-        });
-        await _saveToDoList();
+        for (var todo in newTodos) {
+          todoBox.add(todo);
+        }
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('JSON-Todos geladen!'),
@@ -199,11 +167,11 @@ class _HomePageState extends State<HomePage> {
     try {
       // Prepare the JSON list with the required fields
       List<Map<String, dynamic>> exportList = [];
-      for (var item in toDoList) {
+      for (var item in todoBox.values) {
         exportList.add({
-          "todoName": item[0],
-          "todoId": item.length > 2 ? item[2] : null,
-          "status": item[1] == true ? "done" : "pending",
+          "todoName": item.name,
+          "todoId": item.id,
+          "status": item.done ? "done" : "pending",
           "deadline": "", // No deadline in current model, left empty
         });
       }
@@ -406,14 +374,21 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: toDoList.length,
-        itemBuilder: (BuildContext context, index) {
-          return TodoTile(
-            taskName: toDoList[index][0],
-            taskDone: toDoList[index][1],
-            onChanged: (value) => checkBoxChanged(index),
-            onDelete: () => deleteTask(index),
+      body: ValueListenableBuilder(
+        valueListenable: todoBox.listenable(),
+        builder: (context, Box<TodoItem> box, _) {
+          return ListView.builder(
+            itemCount: box.length,
+            itemBuilder: (BuildContext context, index) {
+              final todo = box.getAt(index);
+              if (todo == null) return SizedBox.shrink();
+              return TodoTile(
+                taskName: todo.name,
+                taskDone: todo.done,
+                onChanged: (value) => checkBoxChanged(index),
+                onDelete: () => deleteTask(index),
+              );
+            },
           );
         },
       ),
